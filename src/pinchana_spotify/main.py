@@ -157,16 +157,13 @@ async def process_scrape_request(request: ScrapeRequest):
         raise HTTPException(status_code=503, detail=str(e))
 
     shortcode = meta.get("id", "sp")
-    storage.prepare_post_dir(shortcode)
     post_dir = storage._post_dir(shortcode)
 
+    # MusicDownloader already created post_dir, cover.jpg, and {id}.mp3
     dest_mp3 = post_dir / "audio.mp3"
     dest_cover = post_dir / "cover.jpg"
-
-    mp3_path.replace(dest_mp3)
-    cover_src = mp3_path.with_name("cover.jpg")
-    if cover_src.exists():
-        cover_src.replace(dest_cover)
+    if mp3_path != dest_mp3:
+        mp3_path.rename(dest_mp3)
 
     response = ScrapeResponse(
         shortcode=shortcode,
