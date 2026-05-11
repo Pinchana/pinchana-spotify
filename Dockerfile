@@ -12,7 +12,7 @@ RUN mkdir -p ../pinchana-core/src
 COPY pinchana-core/src ../pinchana-core/src
 
 COPY pinchana-spotify/pyproject.toml pinchana-spotify/README.md ./
-RUN uv sync --frozen --no-install-project
+RUN uv sync --no-install-project
 
 COPY pinchana-spotify/src ./src
 
