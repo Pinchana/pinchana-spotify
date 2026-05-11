@@ -173,7 +173,7 @@ async def process_scrape_request(request: ScrapeRequest):
         thumbnail_url=f"/media/spotify/{shortcode}/cover.jpg" if dest_cover.exists() else "",
         audio_url=f"/media/spotify/{shortcode}/audio.mp3",
         cover_url=f"/media/spotify/{shortcode}/cover.jpg" if dest_cover.exists() else None,
-        duration=meta.get("duration"),
+        duration=int(meta.get("duration", 0)) if meta.get("duration") else None,
         title=meta.get("title"),
         album=meta.get("album"),
     )
