@@ -1,15 +1,15 @@
 [project]
 name = "pinchana-spotify"
-version = "0.1.0"
+version = "0.2b0"
 description = "Spotify music downloader for Pinchana"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
     "pinchana-core",
-    "fastapi>=0.136.1",
-    "spotipy>=2.24.0",
-    "uvicorn>=0.46.0",
-    "ytmusicapi>=1.10.0",
+    "fastapi>=0.138.2",
+    "spotipy>=2.26.0",
+    "uvicorn>=0.49.0",
+    "ytmusicapi>=1.12.1",
 ]
 
 [tool.uv.sources]
