@@ -17,7 +17,7 @@ from spotipy.oauth2 import SpotifyClientCredentials
 from ytmusicapi import YTMusic
 
 from pinchana_core.models import ScrapeRequest, ScrapeResponse
-from pinchana_core.music import MusicDownloader, MusicDownloadError
+from pinchana_core.music import MusicDownloader, MusicDownloadError, RateLimitError
 from pinchana_core.plugins import ScraperPlugin, registry
 from pinchana_core.storage import MediaStorage
 from pinchana_core.vpn import GluetunController, VpnRotationError
@@ -79,7 +79,13 @@ class SpotifyDownloader(MusicDownloader):
 
         if track_match:
             track_id = track_match.group(1)
-            track = await loop.run_in_executor(None, lambda: sp.track(track_id))
+            try:
+                track = await loop.run_in_executor(None, lambda: sp.track(track_id))
+            except Exception as e:
+                status = getattr(e, "http_status", None)
+                if status in (401, 403, 429) or any(s in str(e).lower() for s in ("429", "rate limit", "too many requests", "timeout", "connection")):
+                    raise RateLimitError(f"Spotify track API blocked: {e}")
+                raise MusicDownloadError(f"Spotify track API failed: {e}")
             if not track:
                 raise MusicDownloadError("Spotify track not found")
 
@@ -106,7 +112,13 @@ class SpotifyDownloader(MusicDownloader):
 
         if album_match:
             album_id = album_match.group(1)
-            album_data = await loop.run_in_executor(None, lambda: sp.album(album_id))
+            try:
+                album_data = await loop.run_in_executor(None, lambda: sp.album(album_id))
+            except Exception as e:
+                status = getattr(e, "http_status", None)
+                if status in (401, 403, 429) or any(s in str(e).lower() for s in ("429", "rate limit", "too many requests", "timeout", "connection")):
+                    raise RateLimitError(f"Spotify album API blocked: {e}")
+                raise MusicDownloadError(f"Spotify album API failed: {e}")
             if not album_data:
                 raise MusicDownloadError("Spotify album not found")
 
@@ -142,7 +154,7 @@ class SpotifyDownloader(MusicDownloader):
         raise MusicDownloadError("Unsupported Spotify URL type")
 
 
-sp_downloader = SpotifyDownloader(storage.base_path, proxy=proxy)
+sp_downloader = SpotifyDownloader(storage.base_path, proxy=proxy, gluetun=gluetun)
 
 
 @router.post("/scrape", response_model=ScrapeResponse)
