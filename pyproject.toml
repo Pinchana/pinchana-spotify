@@ -1,6 +1,6 @@
 [project]
 name = "pinchana-spotify"
-version = "26.9.7"
+version = "26.10.1"
 description = "Spotify music downloader for Pinchana"
 readme = "README.md"
 requires-python = ">=3.13"
