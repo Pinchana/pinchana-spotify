@@ -154,11 +154,18 @@ class SpotifyDownloader(MusicDownloader):
         raise MusicDownloadError("Unsupported Spotify URL type")
 
 
-sp_downloader = SpotifyDownloader(storage.base_path, proxy=proxy, gluetun=gluetun)
+sp_downloader = SpotifyDownloader(lambda: storage.base_path, proxy=proxy, gluetun=gluetun)
 
 
 @router.post("/scrape", response_model=ScrapeResponse)
 async def process_scrape_request(request: ScrapeRequest):
+    # singleflight includes the request cache scope, isolating different users.
+    return await storage.singleflight(
+        str(request.url), lambda: _process_scrape_request(request)
+    )
+
+
+async def _process_scrape_request(request: ScrapeRequest):
     url = str(request.url)
     if "open.spotify.com" not in url:
         raise HTTPException(status_code=400, detail="Invalid Spotify URL")
