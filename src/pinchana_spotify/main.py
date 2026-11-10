@@ -193,6 +193,51 @@ async def process_scrape_request(request: ScrapeRequest):
     return response
 
 
+@router.post("/playlist")
+async def playlist_metadata(request: ScrapeRequest):
+    """Internal metadata-only listing for web playlist jobs, with pagination."""
+    from urllib.parse import urlsplit
+
+    parsed = urlsplit(str(request.url))
+    match = re.fullmatch(r"/(?:intl-[a-z]{2}/)?(playlist|album)/([A-Za-z0-9]+)/?", parsed.path)
+    if parsed.hostname != "open.spotify.com" or not match:
+        raise HTTPException(400, "Invalid Spotify playlist URL")
+    client = _get_spotify_client()
+    if client is None:
+        raise HTTPException(503, "Spotify API credentials not configured")
+    kind, identifier = match.groups()
+
+    def listing():
+        metadata = client.playlist(identifier, fields="name") if kind == "playlist" else client.album(identifier)
+        urls = []
+        offset = 0
+        while True:
+            page = (client.playlist_items(identifier, limit=50, offset=offset) if kind == "playlist"
+                    else client.album_tracks(identifier, limit=50, offset=offset))
+            items = page.get("items", [])
+            for item in items:
+                track = (item.get("item") or item.get("track")) if kind == "playlist" else item
+                if not track or track.get("is_local") or track.get("type", "track") != "track" or not re.fullmatch(r"[A-Za-z0-9]+", track.get("id") or ""):
+                    raise HTTPException(400, "Playlist contains an unavailable or unsupported track")
+                urls.append(f"https://open.spotify.com/track/{track['id']}")
+                if len(urls) > 100:
+                    raise HTTPException(400, "Playlists are limited to 100 items")
+            if not page.get("next"):
+                break
+            if not items:
+                raise HTTPException(502, "Invalid Spotify pagination")
+            offset += len(items)
+        return {"title": metadata.get("name") or "Playlist", "urls": urls}
+
+    try:
+        return await asyncio.to_thread(listing)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.warning("Spotify playlist listing failed: %s", exc)
+        raise HTTPException(503, "Could not read Spotify playlist") from exc
+
+
 @router.get("/health")
 async def health_check():
     try:
